@@ -115,7 +115,9 @@ func set_weapon(weapon_name: String) -> void:
 
 
 func set_ammo(current: int, maximum: int) -> void:
-	if maximum < 0:
+	if maximum == -2:
+		ammo_label.text = "수류탄 %d" % current
+	elif maximum < 0:
 		ammo_label.text = "∞"
 	else:
 		ammo_label.text = "%d / %d" % [current, maximum]

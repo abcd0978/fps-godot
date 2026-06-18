@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[sub_resource type="SphereMesh" id="SphereMesh_1"]
+radius = 0.07
+height = 0.14
+radial_segments = 10
+rings = 6
+
+[sub_resource type="StandardMaterial3D" id="Mat_g"]
+albedo_color = Color(0.18, 0.26, 0.14, 1)
+metallic = 0.3
+roughness = 0.6
+
+[node name="GrenadeHeld" type="Node3D"]
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_1")
+surface_material_override/0 = SubResource("Mat_g")

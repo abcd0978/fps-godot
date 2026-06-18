@@ -12,9 +12,22 @@ extends Node3D
 @onready var ip_edit: LineEdit = $UI/Menu/Multi/IpEdit
 
 var _multi := false  # is the pending host a multiplayer host?
+var _grass_mat: StandardMaterial3D
+
+
+func _make_grass_mat() -> void:
+	_grass_mat = StandardMaterial3D.new()
+	_grass_mat.albedo_texture = preload("res://assets/textures/grass_col.jpg")
+	_grass_mat.normal_enabled = true
+	_grass_mat.normal_texture = preload("res://assets/textures/grass_nrm.jpg")
+	_grass_mat.roughness_texture = preload("res://assets/textures/grass_rgh.jpg")
+	_grass_mat.uv1_triplanar = true
+	_grass_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 
 
 func _ready() -> void:
+	add_to_group("gameworld")  # effects (blood/shells/grenades) parent to this 3D world
+	_make_grass_mat()
 	Net.players_root = $Players
 	main_panel.get_node("SingleBtn").pressed.connect(_on_single)
 	main_panel.get_node("MultiBtn").pressed.connect(_on_multi)
@@ -74,6 +87,12 @@ func _start(mode: String) -> void:
 	elif not _multi:
 		bots.start()  # deathmatch single-player bots
 	menu.hide()
+
+
+func _process(_delta: float) -> void:
+	# Apply grass ground in zombie mode on every peer (clients learn mode via sync).
+	if Match.mode == "zombie" and $Floor.material != _grass_mat:
+		$Floor.material = _grass_mat
 
 
 func _chosen_name() -> String:

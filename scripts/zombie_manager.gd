@@ -25,7 +25,8 @@ func start() -> void:
 func _next_phase() -> void:
 	_phase += 1
 	Match.set_phase(_phase)
-	var count := (4 + _phase * 2) * 10
+	var players: int = maxi(get_tree().get_nodes_in_group("player").size(), 1)
+	var count := (4 + _phase * 2) * 10 * players  # scales with player count
 	_alive = count
 	for i in count:
 		_spawn_zombie()
@@ -51,7 +52,7 @@ func on_zombie_died(pos: Vector3) -> void:
 
 func _spawn_pickup(pos: Vector3) -> void:
 	var p := PICKUP.instantiate()
-	p.kind = randi() % 3
+	p.kind = randi() % 4
 	p.position = Vector3(pos.x, 1.0, pos.z)
 	get_node("../Pickups").add_child(p, true)
 

@@ -108,6 +108,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_3: weapon.equip(2)
 			KEY_4: weapon.equip(3)
 			KEY_5: weapon.equip(4)
+			KEY_6: weapon.equip(5)
 			KEY_R: weapon.reload()
 			KEY_ESCAPE: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -205,6 +206,9 @@ func _update_sprint() -> void:
 func take_damage(amount: int, attacker_name: String, weapon_name: String, attacker_pos: Vector3) -> void:
 	if not is_multiplayer_authority() or _dead or _invincible:
 		return
+	# No friendly fire in zombie survival — only zombies can hurt players.
+	if Match.mode == "zombie" and attacker_name != "Zombie":
+		return
 	if _hud:
 		var local := global_transform.affine_inverse() * attacker_pos
 		_hud.flash_damage(atan2(local.x, -local.z))
@@ -238,14 +242,20 @@ func add_health(amount: int) -> void:
 @rpc("any_peer", "call_local", "reliable")
 func give_ammo() -> void:
 	if is_multiplayer_authority():
-		weapon.refill_all()
+		weapon.add_ammo()
 
 
 @rpc("any_peer", "call_local", "reliable")
 func give_weapon(index: int) -> void:
 	if is_multiplayer_authority():
-		weapon.refill_all()
+		weapon.add_ammo()
 		weapon.equip(index)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func give_grenade(n: int) -> void:
+	if is_multiplayer_authority():
+		weapon.add_grenade(n)
 
 
 # Called by the Match manager when a new round starts.

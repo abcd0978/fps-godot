@@ -12,6 +12,7 @@ const FLASH_TIME := 0.05
 const RELOAD_TIME := 1.1
 const SHELL := preload("res://scenes/shell.tscn")
 const BLOOD := preload("res://scenes/blood.tscn")
+const GRENADE := preload("res://scenes/grenade.tscn")
 # Orient Quaternius guns (barrel = model +X) to Godot view space (forward -Z).
 # columns = images of model X/Y/Z axes. up stays +Y (fixes the 90° roll).
 # If a gun points backwards, negate the x column; if it rolls the wrong way,
@@ -20,11 +21,12 @@ const GUN_ORIENT := Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0))
 
 # name, model, damage, cooldown, magazine size, view scale + hip-fire position
 var _defs := [
-	{"name": "Pistol", "scene": preload("res://assets/weapons/real/pistol.glb"), "damage": 18, "cooldown": 0.30, "mag": 12, "scale": 0.29, "pos": Vector3(0.22, -0.29, -0.5)},
-	{"name": "Rifle", "scene": preload("res://assets/weapons/real/rifle.glb"), "damage": 28, "cooldown": 0.12, "mag": 30, "scale": 0.28, "pos": Vector3(0.24, -0.31, -0.55)},
-	{"name": "Shotgun", "scene": preload("res://assets/weapons/real/shotgun.glb"), "damage": 55, "cooldown": 0.85, "mag": 7, "scale": 0.30, "pos": Vector3(0.24, -0.31, -0.52)},
-	{"name": "Sniper", "scene": preload("res://assets/weapons/real/sniper.glb"), "damage": 100, "cooldown": 1.4, "mag": 5, "scale": 0.34, "pos": Vector3(0.26, -0.29, -0.58), "scope": true, "ads_fov": 16.0},
+	{"name": "Pistol", "scene": preload("res://assets/weapons/real/pistol.glb"), "damage": 18, "cooldown": 0.30, "mag": 12, "reserve": 36, "scale": 0.29, "pos": Vector3(0.22, -0.29, -0.5)},
+	{"name": "Rifle", "scene": preload("res://assets/weapons/real/rifle.glb"), "damage": 28, "cooldown": 0.12, "mag": 30, "reserve": 60, "scale": 0.28, "pos": Vector3(0.24, -0.31, -0.55)},
+	{"name": "Shotgun", "scene": preload("res://assets/weapons/real/shotgun.glb"), "damage": 55, "cooldown": 0.85, "mag": 7, "reserve": 21, "scale": 0.30, "pos": Vector3(0.24, -0.31, -0.52)},
+	{"name": "Sniper", "scene": preload("res://assets/weapons/real/sniper.glb"), "damage": 100, "cooldown": 1.4, "mag": 5, "reserve": 15, "scale": 0.34, "pos": Vector3(0.26, -0.29, -0.58), "scope": true, "ads_fov": 16.0},
 	{"name": "Knife", "scene": preload("res://assets/weapons/real/knife.glb"), "damage": 70, "cooldown": 0.5, "mag": 1, "scale": 12.0, "pos": Vector3(0.2, -0.26, -0.45), "melee": true, "range": 2.6},
+	{"name": "Grenade", "scene": preload("res://scenes/grenade_held.tscn"), "damage": 0, "cooldown": 0.8, "mag": 1, "reserve": 2, "scale": 1.0, "pos": Vector3(0.22, -0.28, -0.5), "throwable": true},
 ]
 
 @onready var raycast: RayCast3D = $RayCast
@@ -39,6 +41,7 @@ var _flash := 0.0
 var _reloading := false
 var _aiming := false
 var _ammo: Array[int] = []
+var _reserve: Array[int] = []   # spare ammo (zombie); grenade count for throwable
 var _model: Node3D = null
 var _hip_pos := Vector3.ZERO
 var _aim_pos := Vector3.ZERO
@@ -46,7 +49,8 @@ var _aim_pos := Vector3.ZERO
 
 func _ready() -> void:
 	for d in _defs:
-		_ammo.append(int(d.mag))
+		_ammo.append(int(d.get("mag", 1)))
+		_reserve.append(int(d.get("reserve", 0)))
 	_equip(0)
 
 
@@ -106,8 +110,13 @@ func equip(index: int) -> void:
 func reload() -> void:
 	if _reloading:
 		return
-	if _ammo[_current] >= int(_defs[_current].mag):
+	var d = _defs[_current]
+	if bool(d.get("melee", false)) or bool(d.get("throwable", false)):
 		return
+	if _ammo[_current] >= int(d.mag):
+		return
+	if Match.mode == "zombie" and _reserve[_current] <= 0:
+		return  # no spare ammo to reload with
 	_reloading = true
 	var t := create_tween()
 	t.set_ease(Tween.EASE_IN_OUT)
@@ -117,18 +126,43 @@ func reload() -> void:
 	t.tween_callback(_end_reload)
 
 
+# Emit the current weapon's ammo display: melee=∞, grenade=count(-2), gun=mag/reserve.
+func _emit_ammo() -> void:
+	var d = _defs[_current]
+	if bool(d.get("throwable", false)):
+		ammo_changed.emit(_reserve[_current], -2)
+	elif bool(d.get("melee", false)):
+		ammo_changed.emit(-1, -1)
+	elif Match.mode == "zombie":
+		ammo_changed.emit(_ammo[_current], _reserve[_current])
+	else:
+		ammo_changed.emit(_ammo[_current], int(d.mag))
+
+
 # Returns the camera recoil pitch to apply (0.0 if no shot was fired).
 func fire() -> float:
 	var d = _defs[_current]
-	var melee := bool(d.get("melee", false))
 	if _cooldown > 0.0 or _reloading:
 		return 0.0
+
+	# Throwable (grenade): consume one from reserve and throw a projectile.
+	if bool(d.get("throwable", false)):
+		if _reserve[_current] <= 0:
+			return 0.0
+		_cooldown = float(d.cooldown)
+		_reserve[_current] -= 1
+		_emit_ammo()
+		_throw_grenade()
+		recoil.position.z += KICK_BACK
+		return KICK_PITCH
+
+	var melee := bool(d.get("melee", false))
 	if not melee and _ammo[_current] <= 0:
 		return 0.0
 	_cooldown = float(d.cooldown)
 	if not melee:
 		_ammo[_current] -= 1
-		ammo_changed.emit(_ammo[_current], int(d.mag))
+		_emit_ammo()
 
 	recoil.position.z += KICK_BACK
 	recoil.rotation.x = -KICK_PITCH
@@ -151,7 +185,7 @@ func fire() -> float:
 
 
 func _spawn_blood(point: Vector3) -> void:
-	var scene := get_tree().current_scene
+	var scene := get_tree().get_first_node_in_group("gameworld")
 	if scene == null:
 		return
 	var b := BLOOD.instantiate()
@@ -160,7 +194,7 @@ func _spawn_blood(point: Vector3) -> void:
 
 
 func _eject_shell() -> void:
-	var scene := get_tree().current_scene
+	var scene := get_tree().get_first_node_in_group("gameworld")
 	if scene == null:
 		return
 	var shell := SHELL.instantiate()
@@ -178,19 +212,53 @@ func _show_flash() -> void:
 
 
 func _refill() -> void:
-	_ammo[_current] = int(_defs[_current].mag)
-	ammo_changed.emit(_ammo[_current], int(_defs[_current].mag))
-
-
-# Refill every (non-melee) magazine — used by ammo/weapon pickups.
-func refill_all() -> void:
-	for i in _defs.size():
-		if not bool(_defs[i].get("melee", false)):
-			_ammo[i] = int(_defs[i].mag)
-	if bool(_defs[_current].get("melee", false)):
-		ammo_changed.emit(-1, -1)
+	var d = _defs[_current]
+	var mag := int(d.mag)
+	if Match.mode == "zombie":
+		var take: int = mini(mag - _ammo[_current], _reserve[_current])
+		_ammo[_current] += take
+		_reserve[_current] -= take
 	else:
-		ammo_changed.emit(_ammo[_current], int(_defs[_current].mag))
+		_ammo[_current] = mag
+	_emit_ammo()
+
+
+# Ammo pickup: add a magazine of reserve to every gun (zombie) / refill (dm).
+func add_ammo() -> void:
+	for i in _defs.size():
+		var d = _defs[i]
+		if bool(d.get("melee", false)) or bool(d.get("throwable", false)):
+			continue
+		if Match.mode == "zombie":
+			_reserve[i] += int(d.mag)
+		else:
+			_ammo[i] = int(d.mag)
+	_emit_ammo()
+
+
+func add_grenade(n: int) -> void:
+	var gi := _grenade_index()
+	if gi >= 0:
+		_reserve[gi] += n
+		_emit_ammo()
+
+
+func _grenade_index() -> int:
+	for i in _defs.size():
+		if bool(_defs[i].get("throwable", false)):
+			return i
+	return -1
+
+
+func _throw_grenade() -> void:
+	var scene := get_tree().get_first_node_in_group("gameworld")
+	if scene == null:
+		return
+	var g := GRENADE.instantiate()
+	scene.add_child(g)
+	g.global_position = muzzle.global_position
+	var b := global_transform.basis
+	g.linear_velocity = -b.z * 14.0 + b.y * 4.0
 
 
 func _end_reload() -> void:
@@ -212,7 +280,4 @@ func _equip(index: int) -> void:
 	recoil.rotation = Vector3.ZERO
 	hold.rotation.x = 0.0
 	weapon_changed.emit(d.name)
-	if bool(d.get("melee", false)):
-		ammo_changed.emit(-1, -1)  # HUD shows infinite for melee
-	else:
-		ammo_changed.emit(_ammo[index], int(d.mag))
+	_emit_ammo()
