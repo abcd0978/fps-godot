@@ -1,0 +1,778 @@
+[gd_scene load_steps=37 format=3]
+
+[ext_resource type="Script" path="res://scripts/world.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/target.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/hud/hud.tscn" id="3"]
+[ext_resource type="Texture2D" path="res://assets/textures/floor_col.jpg" id="4"]
+[ext_resource type="Texture2D" path="res://assets/textures/floor_nrm.jpg" id="5"]
+[ext_resource type="Texture2D" path="res://assets/textures/floor_rgh.jpg" id="6"]
+[ext_resource type="Texture2D" path="res://assets/textures/wall_col.jpg" id="7"]
+[ext_resource type="Texture2D" path="res://assets/textures/wall_nrm.jpg" id="8"]
+[ext_resource type="Texture2D" path="res://assets/textures/wall_rgh.jpg" id="9"]
+[ext_resource type="Texture2D" path="res://assets/textures/building_col.jpg" id="10"]
+[ext_resource type="Texture2D" path="res://assets/textures/building_nrm.jpg" id="11"]
+[ext_resource type="Texture2D" path="res://assets/textures/building_rgh.jpg" id="12"]
+[ext_resource type="Texture2D" path="res://assets/textures/cover_col.jpg" id="13"]
+[ext_resource type="Texture2D" path="res://assets/textures/cover_nrm.jpg" id="14"]
+[ext_resource type="Texture2D" path="res://assets/textures/cover_rgh.jpg" id="15"]
+[ext_resource type="Script" path="res://scripts/bot_manager.gd" id="16"]
+[ext_resource type="Script" path="res://scripts/prop.gd" id="17"]
+[ext_resource type="PackedScene" path="res://assets/props/barrel.glb" id="18"]
+[ext_resource type="PackedScene" path="res://assets/props/box-large.glb" id="19"]
+[ext_resource type="PackedScene" path="res://assets/props/box.glb" id="20"]
+[ext_resource type="PackedScene" path="res://assets/props/rock-a.glb" id="21"]
+[ext_resource type="PackedScene" path="res://assets/props/rock-c.glb" id="22"]
+[ext_resource type="PackedScene" path="res://assets/props/tree-log.glb" id="23"]
+[ext_resource type="PackedScene" path="res://assets/props/fence-fortified.glb" id="24"]
+[ext_resource type="PackedScene" path="res://assets/props/structure-metal-wall.glb" id="25"]
+[ext_resource type="Script" path="res://scripts/zombie_manager.gd" id="26"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+tonemap_mode = 2
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(1, 1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1"]
+albedo_color = Color(0.9, 0.2, 0.2, 1)
+emission_enabled = true
+emission = Color(0.5, 0.05, 0.05, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="StandardMaterial3D" id="mat_floor"]
+albedo_texture = ExtResource("4")
+normal_enabled = true
+normal_texture = ExtResource("5")
+roughness_texture = ExtResource("6")
+uv1_triplanar = true
+uv1_scale = Vector3(0.2, 0.2, 0.2)
+
+[sub_resource type="StandardMaterial3D" id="mat_wall"]
+albedo_texture = ExtResource("7")
+normal_enabled = true
+normal_texture = ExtResource("8")
+roughness_texture = ExtResource("9")
+uv1_triplanar = true
+uv1_scale = Vector3(0.4, 0.4, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="mat_build"]
+albedo_texture = ExtResource("10")
+normal_enabled = true
+normal_texture = ExtResource("11")
+roughness_texture = ExtResource("12")
+uv1_triplanar = true
+uv1_scale = Vector3(0.3, 0.3, 0.3)
+
+[sub_resource type="StandardMaterial3D" id="mat_cover"]
+albedo_texture = ExtResource("13")
+normal_enabled = true
+normal_texture = ExtResource("14")
+roughness_texture = ExtResource("15")
+uv1_triplanar = true
+uv1_scale = Vector3(0.5, 0.5, 0.5)
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.86, 0.25, -0.44, 0, 0.86, 0.5, 0.5, -0.43, 0.74, 0, 12, 0)
+shadow_enabled = true
+
+[node name="Floor" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+use_collision = true
+size = Vector3(180, 1, 180)
+material = SubResource("mat_floor")
+
+[node name="WallN" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -90)
+use_collision = true
+size = Vector3(180, 8, 1)
+material = SubResource("mat_wall")
+
+[node name="WallS" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 90)
+use_collision = true
+size = Vector3(180, 8, 1)
+material = SubResource("mat_wall")
+
+[node name="WallE" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90, 4, 0)
+use_collision = true
+size = Vector3(1, 8, 180)
+material = SubResource("mat_wall")
+
+[node name="WallW" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 4, 0)
+use_collision = true
+size = Vector3(1, 8, 180)
+material = SubResource("mat_wall")
+
+[node name="A_WallN" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 2, -29)
+use_collision = true
+size = Vector3(18, 4, 0.5)
+material = SubResource("mat_build")
+
+[node name="A_WallE" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 2, -20)
+use_collision = true
+size = Vector3(0.5, 4, 18)
+material = SubResource("mat_build")
+
+[node name="A_WallW" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 2, -20)
+use_collision = true
+size = Vector3(0.5, 4, 18)
+material = SubResource("mat_build")
+
+[node name="A_DoorL" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.5, 2, -11)
+use_collision = true
+size = Vector3(7, 4, 0.5)
+material = SubResource("mat_build")
+
+[node name="A_DoorR" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, 2, -11)
+use_collision = true
+size = Vector3(7, 4, 0.5)
+material = SubResource("mat_build")
+
+[node name="A_Roof" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 4.2, -20)
+use_collision = true
+size = Vector3(18, 0.4, 18)
+material = SubResource("mat_build")
+
+[node name="A_Ramp" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.922, -0.388, 0, 0.388, 0.922, 14.5, 2.1, -13)
+use_collision = true
+size = Vector3(3.5, 0.4, 11)
+material = SubResource("mat_build")
+
+[node name="P_crateIn" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29, 0, -25)
+script = ExtResource("17")
+model = ExtResource("19")
+model_scale = 3.0
+
+[node name="T_Platform" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 5, -34)
+use_collision = true
+size = Vector3(10, 0.4, 10)
+material = SubResource("mat_build")
+
+[node name="T_RailA" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 5.6, -39)
+use_collision = true
+size = Vector3(10, 1, 0.4)
+material = SubResource("mat_build")
+
+[node name="T_RailB" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39, 5.6, -34)
+use_collision = true
+size = Vector3(0.4, 1, 10)
+material = SubResource("mat_build")
+
+[node name="T_Ramp" type="CSGBox3D" parent="."]
+transform = Transform3D(0.923, 0.384, 0, -0.384, 0.923, 0, 0, 0, 1, -24, 2.5, -34)
+use_collision = true
+size = Vector3(12, 0.4, 4)
+material = SubResource("mat_build")
+
+[node name="P_barrel1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -5)
+script = ExtResource("17")
+model = ExtResource("18")
+model_scale = 3.2
+
+[node name="P_boxL1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 18)
+script = ExtResource("17")
+model = ExtResource("19")
+model_scale = 3.0
+
+[node name="P_rockA1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 0, 20)
+script = ExtResource("17")
+model = ExtResource("21")
+model_scale = 2.6
+
+[node name="P_barrel2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -30)
+script = ExtResource("17")
+model = ExtResource("18")
+model_scale = 3.2
+
+[node name="P_metalW1" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -42, 0, 8)
+script = ExtResource("17")
+model = ExtResource("25")
+model_scale = 3.5
+
+[node name="P_log1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -16)
+script = ExtResource("17")
+model = ExtResource("23")
+model_scale = 2.5
+
+[node name="P_rockC1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, -42)
+script = ExtResource("17")
+model = ExtResource("22")
+model_scale = 2.4
+
+[node name="P_box1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 40)
+script = ExtResource("17")
+model = ExtResource("20")
+model_scale = 3.5
+
+[node name="P_fence1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, 0, 12)
+script = ExtResource("17")
+model = ExtResource("24")
+model_scale = 3.2
+
+[node name="P_barrel3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62, 0, -52)
+script = ExtResource("17")
+model = ExtResource("18")
+model_scale = 3.2
+
+[node name="P_rockA2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58, 0, -62)
+script = ExtResource("17")
+model = ExtResource("21")
+model_scale = 3.0
+
+[node name="P_boxL2" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -58, 0, 58)
+script = ExtResource("17")
+model = ExtResource("19")
+model_scale = 3.0
+
+[node name="P_log2" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 32, 0, 62)
+script = ExtResource("17")
+model = ExtResource("23")
+model_scale = 2.5
+
+[node name="P_metalW2" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 72, 0, -22)
+script = ExtResource("17")
+model = ExtResource("25")
+model_scale = 3.5
+
+[node name="P_rockC2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72, 0, 32)
+script = ExtResource("17")
+model = ExtResource("22")
+model_scale = 2.6
+
+[node name="P_barrel4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, -62)
+script = ExtResource("17")
+model = ExtResource("18")
+model_scale = 3.2
+
+[node name="P_fence2" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -32, 0, 72)
+script = ExtResource("17")
+model = ExtResource("24")
+model_scale = 3.2
+
+[node name="P_box2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 0, 48)
+script = ExtResource("17")
+model = ExtResource("20")
+model_scale = 4.0
+
+[node name="BigBlock1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 1.5, 30)
+use_collision = true
+size = Vector3(1.5, 3, 8)
+material = SubResource("mat_cover")
+
+[node name="BigBlock2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 1.5, -15)
+use_collision = true
+size = Vector3(8, 3, 1.5)
+material = SubResource("mat_cover")
+
+[node name="BigBlock3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65, 2, -45)
+use_collision = true
+size = Vector3(5, 4, 5)
+material = SubResource("mat_cover")
+
+[node name="BigBlock4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65, 1.75, 45)
+use_collision = true
+size = Vector3(4, 3.5, 4)
+material = SubResource("mat_cover")
+
+[node name="BigBlock5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45, 2, 70)
+use_collision = true
+size = Vector3(1.5, 4, 10)
+material = SubResource("mat_cover")
+
+[node name="BigBlock6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 1.5, -68)
+use_collision = true
+size = Vector3(10, 3, 1.5)
+material = SubResource("mat_cover")
+
+[node name="P_bigRock1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 0, -55)
+script = ExtResource("17")
+model = ExtResource("22")
+model_scale = 5.5
+
+[node name="P_bigRock2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0, 25)
+script = ExtResource("17")
+model = ExtResource("22")
+model_scale = 5.0
+
+[node name="P_bigRock3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55, 0, -68)
+script = ExtResource("17")
+model = ExtResource("21")
+model_scale = 5.0
+
+[node name="P_bigWall1" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 30, 0, -48)
+script = ExtResource("17")
+model = ExtResource("25")
+model_scale = 6.0
+
+[node name="P_bigWall2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, 0, 35)
+script = ExtResource("17")
+model = ExtResource("25")
+model_scale = 5.5
+
+[node name="P_bigBox1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, 0, 55)
+script = ExtResource("17")
+model = ExtResource("19")
+model_scale = 8.0
+
+[node name="P_bigBox2" type="StaticBody3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -72, 0, -30)
+script = ExtResource("17")
+model = ExtResource("19")
+model_scale = 7.0
+
+[node name="B_NL" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.25, 2.25, 40)
+use_collision = true
+size = Vector3(6.5, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="B_NR" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.75, 2.25, 40)
+use_collision = true
+size = Vector3(6.5, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="B_S" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 2.25, 56)
+use_collision = true
+size = Vector3(16, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="B_E" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58, 2.25, 48)
+use_collision = true
+size = Vector3(0.5, 4.5, 16)
+material = SubResource("mat_build")
+
+[node name="B_W" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 2.25, 48)
+use_collision = true
+size = Vector3(0.5, 4.5, 16)
+material = SubResource("mat_build")
+
+[node name="B_Roof" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 4.7, 48)
+use_collision = true
+size = Vector3(16, 0.4, 16)
+material = SubResource("mat_build")
+
+[node name="C_EL" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, 2.25, 40)
+use_collision = true
+size = Vector3(0.5, 4.5, 6)
+material = SubResource("mat_build")
+
+[node name="C_ER" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, 2.25, 50)
+use_collision = true
+size = Vector3(0.5, 4.5, 6)
+material = SubResource("mat_build")
+
+[node name="C_W" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58, 2.25, 45)
+use_collision = true
+size = Vector3(0.5, 4.5, 16)
+material = SubResource("mat_build")
+
+[node name="C_N" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 2.25, 37)
+use_collision = true
+size = Vector3(16, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="C_S" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 2.25, 53)
+use_collision = true
+size = Vector3(16, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="C_Roof" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 4.7, 45)
+use_collision = true
+size = Vector3(16, 0.4, 16)
+material = SubResource("mat_build")
+
+[node name="D_SL" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 2.25, -61)
+use_collision = true
+size = Vector3(7, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="D_SR" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 2.25, -61)
+use_collision = true
+size = Vector3(7, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="D_N" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.25, -75)
+use_collision = true
+size = Vector3(18, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="D_E" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 2.25, -68)
+use_collision = true
+size = Vector3(0.5, 4.5, 14)
+material = SubResource("mat_build")
+
+[node name="D_W" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.25, -68)
+use_collision = true
+size = Vector3(0.5, 4.5, 14)
+material = SubResource("mat_build")
+
+[node name="D_Roof" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.7, -68)
+use_collision = true
+size = Vector3(18, 0.4, 14)
+material = SubResource("mat_build")
+
+[node name="E_SL" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53, 2.25, -10)
+use_collision = true
+size = Vector3(0.5, 4.5, 6)
+material = SubResource("mat_build")
+
+[node name="E_SR" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53, 2.25, 0)
+use_collision = true
+size = Vector3(0.5, 4.5, 6)
+material = SubResource("mat_build")
+
+[node name="E_W" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -67, 2.25, -5)
+use_collision = true
+size = Vector3(0.5, 4.5, 16)
+material = SubResource("mat_build")
+
+[node name="E_N" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60, 2.25, -13)
+use_collision = true
+size = Vector3(14, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="E_S" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60, 2.25, 3)
+use_collision = true
+size = Vector3(14, 4.5, 0.5)
+material = SubResource("mat_build")
+
+[node name="E_Roof" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60, 4.7, -5)
+use_collision = true
+size = Vector3(14, 0.4, 16)
+material = SubResource("mat_build")
+
+[node name="Div1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 8)
+use_collision = true
+size = Vector3(1, 4, 30)
+material = SubResource("mat_wall")
+
+[node name="Div2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 2, 18)
+use_collision = true
+size = Vector3(30, 4, 1)
+material = SubResource("mat_wall")
+
+[node name="Div3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 2, -48)
+use_collision = true
+size = Vector3(1, 4, 26)
+material = SubResource("mat_wall")
+
+[node name="Div4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 2, 5)
+use_collision = true
+size = Vector3(26, 4, 1)
+material = SubResource("mat_wall")
+
+[node name="Div5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, 2, 30)
+use_collision = true
+size = Vector3(1, 4, 28)
+material = SubResource("mat_wall")
+
+[node name="Target1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0.5, -36)
+script = ExtResource("2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Target1"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Target1"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="Target2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0.5, -12)
+script = ExtResource("2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Target2"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Target2"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="Target3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 32)
+script = ExtResource("2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Target3"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Target3"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="Target4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 0.5, 22)
+script = ExtResource("2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Target4"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Target4"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="Target5" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 4.9, -20)
+script = ExtResource("2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Target5"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Target5"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="Target6" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 5.7, -34)
+script = ExtResource("2")
+
+[node name="Mesh" type="MeshInstance3D" parent="Target6"]
+mesh = SubResource("BoxMesh_1")
+surface_material_override/0 = SubResource("StandardMaterial3D_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Target6"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="Bots" type="Node3D" parent="."]
+script = ExtResource("16")
+
+[node name="Zombies" type="Node3D" parent="."]
+script = ExtResource("26")
+
+[node name="Pickups" type="Node3D" parent="."]
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/player.tscn")
+spawn_path = NodePath("../Players")
+
+[node name="ZombieSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/zombie.tscn")
+spawn_path = NodePath("../Zombies")
+
+[node name="PickupSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/pickup.tscn")
+spawn_path = NodePath("../Pickups")
+
+[node name="HUD" parent="." instance=ExtResource("3")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Menu" type="Control" parent="UI"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="UI/Menu"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Title" type="Label" parent="UI/Menu"]
+anchor_left = 0.5
+anchor_top = 0.25
+anchor_right = 0.5
+anchor_bottom = 0.25
+offset_left = -120.0
+offset_right = 120.0
+offset_bottom = 40.0
+grow_horizontal = 2
+text = "ALUXSTRIKE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Main" type="VBoxContainer" parent="UI/Menu"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -130.0
+offset_top = -60.0
+offset_right = 130.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="SingleBtn" type="Button" parent="UI/Menu/Main"]
+custom_minimum_size = Vector2(0, 44)
+text = "SINGLE PLAY"
+
+[node name="MultiBtn" type="Button" parent="UI/Menu/Main"]
+custom_minimum_size = Vector2(0, 44)
+text = "MULTI PLAY"
+
+[node name="SettingsBtn" type="Button" parent="UI/Menu/Main"]
+custom_minimum_size = Vector2(0, 44)
+text = "SETTINGS"
+
+[node name="Multi" type="VBoxContainer" parent="UI/Menu"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -130.0
+offset_top = -80.0
+offset_right = 130.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="NameEdit" type="LineEdit" parent="UI/Menu/Multi"]
+custom_minimum_size = Vector2(0, 36)
+placeholder_text = "이름 입력"
+max_length = 16
+alignment = 1
+
+[node name="IpEdit" type="LineEdit" parent="UI/Menu/Multi"]
+custom_minimum_size = Vector2(0, 36)
+placeholder_text = "접속할 IP"
+text = "127.0.0.1"
+alignment = 1
+
+[node name="HostBtn" type="Button" parent="UI/Menu/Multi"]
+custom_minimum_size = Vector2(0, 40)
+text = "HOST (서버 + 플레이)"
+
+[node name="JoinBtn" type="Button" parent="UI/Menu/Multi"]
+custom_minimum_size = Vector2(0, 40)
+text = "JOIN (127.0.0.1)"
+
+[node name="BackBtn" type="Button" parent="UI/Menu/Multi"]
+text = "← 뒤로"
+
+[node name="MyIp" type="Label" parent="UI/Menu/Multi"]
+text = "내 IP: ..."
+horizontal_alignment = 1
+
+[node name="Mode" type="VBoxContainer" parent="UI/Menu"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -130.0
+offset_top = -70.0
+offset_right = 130.0
+offset_bottom = 70.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="DmBtn" type="Button" parent="UI/Menu/Mode"]
+custom_minimum_size = Vector2(0, 44)
+text = "데스매치"
+
+[node name="ZombieBtn" type="Button" parent="UI/Menu/Mode"]
+custom_minimum_size = Vector2(0, 44)
+text = "좀비 서바이벌"
+
+[node name="ModeBackBtn" type="Button" parent="UI/Menu/Mode"]
+text = "← 뒤로"
+
+[node name="Status" type="Label" parent="UI/Menu"]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -70.0
+offset_right = 300.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "WASD 이동 · W더블탭 질주 · 좌클릭 사격 · 우클릭 조준 · 1~4 무기(4=스나이퍼) · R 재장전 · ESC 마우스해제"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2

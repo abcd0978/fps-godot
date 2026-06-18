@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/root.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/main.tscn" id="2"]
+
+[node name="Root" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Game" type="SubViewportContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Game"]
+handle_input_locally = false
+render_target_update_mode = 4
+
+[node name="Main" parent="Game/SubViewport" instance=ExtResource("2")]

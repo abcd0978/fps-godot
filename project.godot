@@ -1,0 +1,29 @@
+; Engine configuration file.
+; FPS Game - Godot 4.6
+
+config_version=5
+
+[application]
+
+config/name="AluxStrike"
+run/main_scene="res://scenes/root.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+
+[autoload]
+
+Net="*res://scripts/net/network_manager.gd"
+Match="*res://scripts/match.gd"
+Settings="*res://scripts/settings.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/per_pixel_transparency/allowed=true
+
+[rendering]
+
+scaling_3d/scale=0.8
+anti_aliasing/quality/msaa_3d=0
+lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0

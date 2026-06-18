@@ -1,0 +1,9 @@
+# Godot 4 import cache (regenerated on open)
+/.godot/
+
+# Build output (large binaries, exceed GitHub limits)
+/build/
+
+# temp
+/_dl/
+*.tmp
