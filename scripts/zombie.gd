@@ -53,7 +53,10 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
-		if _atk <= 0.0:
+		# Only hit if actually within reach in 3D (can't attack a player
+		# standing on a structure above with only the floor between them).
+		var reach := global_position.distance_to(target.global_position)
+		if _atk <= 0.0 and reach <= ATTACK_RANGE:
 			_atk = ATTACK_CD
 			if target.has_method("take_damage"):
 				target.take_damage.rpc_id(target.get_multiplayer_authority(), DAMAGE, "Zombie", "Melee", global_position)
