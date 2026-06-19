@@ -11,7 +11,6 @@ const RECOVER := 13.0     # recoil/aim lerp speed
 const FLASH_TIME := 0.05
 const RELOAD_TIME := 1.1
 const SHELL := preload("res://scenes/shell.tscn")
-const BLOOD := preload("res://scenes/blood.tscn")
 const GRENADE := preload("res://scenes/grenade.tscn")
 # Orient Quaternius guns (barrel = model +X) to Godot view space (forward -Z).
 # columns = images of model X/Y/Z axes. up stays +Y (fixes the 90° roll).
@@ -178,19 +177,10 @@ func fire() -> float:
 				var dmg := int(d.damage)
 				if hit.has_method("take_damage"):
 					hit.take_damage.rpc_id(hit.get_multiplayer_authority(), dmg, shooter_name, current_name(), global_position)
-					_spawn_blood(point)
+					Net.spawn_blood.rpc(point)
 				elif hit.has_method("hit"):
 					hit.hit.rpc()
 	return KICK_PITCH
-
-
-func _spawn_blood(point: Vector3) -> void:
-	var scene := get_tree().get_first_node_in_group("gameworld")
-	if scene == null:
-		return
-	var b := BLOOD.instantiate()
-	scene.add_child(b)
-	b.global_position = point
 
 
 func _eject_shell() -> void:

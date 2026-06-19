@@ -12,9 +12,11 @@ const MODEL_SCALE := 2.5
 const WALK_THRESHOLD := 0.6
 const RUN_THRESHOLD := 8.0
 const THIRD_GUN := preload("res://assets/weapons/rifle.glb")  # weapon others see in your hand
+const ATTACK_ANIM := "attack-melee-right"
 
 var _anim: AnimationPlayer = null
 var _dead := false
+var _attacking := false
 var _state := ""
 
 
@@ -58,7 +60,7 @@ func build(index: int, tint := Color(1, 1, 1, 1), with_gun := true) -> void:
 
 
 func set_locomotion(speed: float) -> void:
-	if _dead:
+	if _dead or _attacking:
 		return
 	var a := "idle"
 	if speed > RUN_THRESHOLD:
@@ -66,6 +68,22 @@ func set_locomotion(speed: float) -> void:
 	elif speed > WALK_THRESHOLD:
 		a = "walk"
 	_play(a)
+
+
+# Play the melee swing once, stretched to `duration` seconds, then idle.
+func play_attack(duration := 0.5) -> void:
+	if _dead or _anim == null or not _anim.has_animation(ATTACK_ANIM):
+		return
+	_attacking = true
+	_state = ATTACK_ANIM
+	var anim := _anim.get_animation(ATTACK_ANIM)
+	anim.loop_mode = Animation.LOOP_NONE
+	var speed := (anim.length / duration) if duration > 0.0 else 1.0
+	_anim.play(ATTACK_ANIM, -1.0, speed)
+	await get_tree().create_timer(duration).timeout
+	_attacking = false
+	if not _dead:
+		_play("idle")
 
 
 func play_die() -> void:

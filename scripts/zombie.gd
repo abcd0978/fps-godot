@@ -5,14 +5,14 @@ extends CharacterBody3D
 const SPEED := 3.0
 const GRAVITY := 14.0
 const ATTACK_RANGE := 2.3
-const ATTACK_CD := 1.0
+const ATTACK_DURATION := 0.5  # wind-up; damage lands when the swing ends
 const DAMAGE := 12
 const MAX_HEALTH := 60
 
 @onready var visual: Node3D = $Visual
 
 var health := MAX_HEALTH
-var _atk := 0.0
+var _attacking := false
 var _dead := false
 
 
@@ -31,7 +31,6 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 
-	_atk -= delta
 	var target := _nearest_player()
 	if target == null:
 		velocity.x = 0.0
@@ -43,26 +42,48 @@ func _physics_process(delta: float) -> void:
 	var to_player := target.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
-	if dist > 0.5:
+	if dist > 0.5 and not _attacking:
 		look_at(Vector3(target.global_position.x, global_position.y, target.global_position.z), Vector3.UP)
 
-	if dist > ATTACK_RANGE:
+	if _attacking:
+		# Hold position while swinging.
+		velocity.x = 0.0
+		velocity.z = 0.0
+	elif dist > ATTACK_RANGE:
 		var dir := to_player.normalized()
 		velocity.x = dir.x * SPEED
 		velocity.z = dir.z * SPEED
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
-		# Only hit if actually within reach in 3D (can't attack a player
-		# standing on a structure above with only the floor between them).
-		var reach := global_position.distance_to(target.global_position)
-		if _atk <= 0.0 and reach <= ATTACK_RANGE:
-			_atk = ATTACK_CD
-			if target.has_method("take_damage"):
-				target.take_damage.rpc_id(target.get_multiplayer_authority(), DAMAGE, "Zombie", "Melee", global_position)
+		# Only start a swing if actually within reach in 3D (can't attack a
+		# player standing on a structure above with only the floor between).
+		if global_position.distance_to(target.global_position) <= ATTACK_RANGE:
+			_start_attack()
 
 	move_and_slide()
-	visual.set_locomotion(Vector2(velocity.x, velocity.z).length())
+	if not _attacking:
+		visual.set_locomotion(Vector2(velocity.x, velocity.z).length())
+
+
+# Server-only. Plays the swing on every peer; damage lands after the wind-up
+# if the player is still within reach when the motion ends.
+func _start_attack() -> void:
+	_attacking = true
+	_play_attack.rpc()
+	await get_tree().create_timer(ATTACK_DURATION).timeout
+	_attacking = false
+	if _dead:
+		return
+	var target := _nearest_player()
+	if target and global_position.distance_to(target.global_position) <= ATTACK_RANGE:
+		if target.has_method("take_damage"):
+			target.take_damage.rpc_id(target.get_multiplayer_authority(), DAMAGE, "Zombie", "Melee", global_position)
+
+
+@rpc("authority", "call_local", "reliable")
+func _play_attack() -> void:
+	visual.play_attack(ATTACK_DURATION)
 
 
 func _nearest_player() -> Node3D:

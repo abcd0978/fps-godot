@@ -6,6 +6,7 @@ const PORT := 7777
 const ADDRESS := "127.0.0.1"
 
 var player_scene: PackedScene = preload("res://scenes/player.tscn")
+var blood_scene: PackedScene = preload("res://scenes/blood.tscn")
 var players_root: Node = null
 var player_name := "Player"
 
@@ -17,6 +18,17 @@ func report_kill(killer: String, victim: String, weapon: String) -> void:
 	if hud:
 		hud.add_kill(killer, victim, weapon)
 	Match.register_kill(killer)
+
+
+# Spawn a blood burst at a hit point on every peer (cosmetic, so unreliable).
+@rpc("any_peer", "call_local", "unreliable")
+func spawn_blood(pos: Vector3) -> void:
+	var scene := get_tree().get_first_node_in_group("gameworld")
+	if scene == null:
+		return
+	var b := blood_scene.instantiate()
+	scene.add_child(b)
+	b.global_position = pos
 
 
 func host() -> bool:
