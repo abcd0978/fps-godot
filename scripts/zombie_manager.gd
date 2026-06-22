@@ -97,4 +97,9 @@ func _spawn_pos() -> Vector3:
 	var r := randf_range(28.0, 52.0)
 	var x: float = clampf(center.x + cos(ang) * r, -86.0, 86.0)
 	var z: float = clampf(center.z + sin(ang) * r, -86.0, 86.0)
+	# Snap onto the navmesh so zombies never spawn trapped inside a wall/building.
+	var map := get_world_3d().get_navigation_map()
+	var snapped := NavigationServer3D.map_get_closest_point(map, Vector3(x, 1.0, z))
+	if snapped != Vector3.ZERO:
+		return Vector3(snapped.x, 2.0, snapped.z)
 	return Vector3(x, 2.0, z)

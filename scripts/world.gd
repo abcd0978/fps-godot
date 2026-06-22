@@ -28,6 +28,7 @@ func _make_grass_mat() -> void:
 func _ready() -> void:
 	add_to_group("gameworld")  # effects (blood/shells/grenades) parent to this 3D world
 	_make_grass_mat()
+	call_deferred("_bake_navmesh")  # build the zombie pathfinding mesh from the level
 	Net.players_root = $Players
 	main_panel.get_node("SingleBtn").pressed.connect(_on_single)
 	main_panel.get_node("MultiBtn").pressed.connect(_on_multi)
@@ -39,6 +40,19 @@ func _ready() -> void:
 	mode_panel.get_node("ZombieBtn").pressed.connect(_start.bind("zombie"))
 	mode_panel.get_node("ModeBackBtn").pressed.connect(_back_to_main)
 	multi_panel.get_node("MyIp").text = "내 IP: %s  (호스트가 알려주세요)" % _local_ip()
+
+
+# Bake a navigation mesh from the level geometry so zombies path around walls
+# and buildings instead of walking into them. Runs once at load (no actors yet).
+func _bake_navmesh() -> void:
+	var region := $NavRegion as NavigationRegion3D
+	if region == null or region.navigation_mesh == null:
+		return
+	var nm := region.navigation_mesh
+	var src := NavigationMeshSourceGeometryData3D.new()
+	NavigationServer3D.parse_source_geometry_data(nm, src, self)
+	NavigationServer3D.bake_from_source_geometry_data(nm, src)
+	region.navigation_mesh = nm
 
 
 func _show_only(which: String) -> void:

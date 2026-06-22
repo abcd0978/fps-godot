@@ -47,7 +47,9 @@ func spawn_blood(pos: Vector3, normal := Vector3.UP) -> void:
 	_drop_splat(scene, pos)
 
 
-# Project a blood splat onto the ground beneath the hit and cap the total.
+# Scatter several small blood marks on the ground beneath the hit. Actors are
+# excluded from the ray so a mid-air kill never paints blood onto a body — it
+# always falls to the floor (or nowhere, if there's no ground below).
 func _drop_splat(scene: Node, pos: Vector3) -> void:
 	var world := (scene as Node3D).get_world_3d()
 	if world == null:
@@ -55,23 +57,32 @@ func _drop_splat(scene: Node, pos: Vector3) -> void:
 	var space := world.direct_space_state
 	if space == null:
 		return
-	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.3, pos + Vector3.DOWN * 8.0)
+	var exclude: Array = []
+	for n in get_tree().get_nodes_in_group("zombie"):
+		exclude.append(n.get_rid())
+	for n in get_tree().get_nodes_in_group("player"):
+		exclude.append(n.get_rid())
+	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.3, pos + Vector3.DOWN * 10.0)
+	q.exclude = exclude
 	var hit := space.intersect_ray(q)
 	if hit.is_empty():
 		return
-	var splats := get_tree().get_nodes_in_group("bloodsplat")
-	while splats.size() >= MAX_SPLATS:
-		splats[0].queue_free()
-		splats.remove_at(0)
-	var s := splat_scene.instantiate()
-	scene.add_child(s)
 	var hpos: Vector3 = hit.position
 	var hnorm: Vector3 = hit.normal
-	s.global_position = hpos + hnorm * 0.02  # lift slightly to avoid z-fighting
-	# Lay the quad flat on the surface with a random spin and size.
-	var basis := _basis_from_normal(hnorm)
-	basis = basis.rotated(hnorm, randf() * TAU).scaled(Vector3.ONE * randf_range(0.5, 1.1))
-	s.global_transform.basis = basis
+	var marks := randi_range(3, 5)
+	var splats := get_tree().get_nodes_in_group("bloodsplat")
+	while splats.size() + marks > MAX_SPLATS and not splats.is_empty():
+		splats[0].queue_free()
+		splats.remove_at(0)
+	# A cluster of small, varied marks rather than one big pool.
+	for i in marks:
+		var s := splat_scene.instantiate()
+		scene.add_child(s)
+		var off := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0))
+		s.global_position = hpos + hnorm * 0.02 + off
+		var basis := _basis_from_normal(hnorm)
+		basis = basis.rotated(hnorm, randf() * TAU).scaled(Vector3.ONE * randf_range(0.25, 0.6))
+		s.global_transform.basis = basis
 
 
 # Build an orthonormal basis whose +Z points along `n` (the quad's facing axis).

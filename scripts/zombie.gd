@@ -25,7 +25,9 @@ const STATS := {
 @export var kind := 0  # set by the manager before spawn; replicated at spawn
 
 @onready var visual: Node3D = $Visual
+@onready var _agent: NavigationAgent3D = $NavAgent
 
+var _nav_t := 0.0  # throttle path target updates
 var speed := 7.0
 var damage := 12
 var attack_range := 2.3
@@ -82,7 +84,7 @@ func _physics_process(delta: float) -> void:
 	if kind == 4:
 		_act_spitter(target, to_player, dist)
 	else:
-		_act_melee(target, to_player, dist, height_diff)
+		_act_melee(target, to_player, dist, height_diff, delta)
 
 	move_and_slide()
 	if not _attacking:
@@ -90,13 +92,13 @@ func _physics_process(delta: float) -> void:
 
 
 # Melee kinds (normal/runner/brute/jumper): close in, climb, swing in reach.
-func _act_melee(target: Node3D, to_player: Vector3, dist: float, height_diff: float) -> void:
+func _act_melee(target: Node3D, to_player: Vector3, dist: float, height_diff: float, delta: float) -> void:
 	if _attacking:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		return
 	if dist > attack_range:
-		var dir := _steer(to_player.normalized())
+		var dir := _chase_dir(target, delta)
 		velocity.x = dir.x * speed
 		velocity.z = dir.z * speed
 		# Jumpers periodically leap toward the player to close gaps.
@@ -156,14 +158,16 @@ func _spit(target: Node3D) -> void:
 	var v := VOMIT.instantiate()
 	var origin := global_position + Vector3.UP * 1.2
 	v.position = origin
-	var to := target.global_position + Vector3.UP * 0.8 - origin
-	var horiz := Vector3(to.x, 0.0, to.z)
-	var d := horiz.length()
-	# Lobbed arc tuned for long-range sniping: fast and fairly flat so it
-	# crosses ~30 m, with an upward kick that scales with distance.
-	var launch := horiz.normalized() * 26.0
-	launch.y = clampf(d * 0.30, 4.0, 12.0)
-	v.velocity = launch
+	# Ballistic solve with target leading: pick a time-of-flight from the range,
+	# predict where the player will be, then solve the launch velocity that lands
+	# exactly there (gravity must match vomit.gd's GRAVITY).
+	var aim := target.global_position + Vector3.UP * 0.8
+	var horiz_dist := Vector2(aim.x - origin.x, aim.z - origin.z).length()
+	var t: float = clampf(horiz_dist / 24.0, 0.45, 2.2)  # flight time
+	aim += target.velocity * t                            # lead the moving player
+	var disp := aim - origin
+	var g := 9.0
+	v.velocity = Vector3(disp.x / t, disp.y / t + 0.5 * g * t, disp.z / t)
 	# Vomits is a sibling of our Zombies container, so resolve it relative to our
 	# parent (the Zombies node) — NOT to this zombie, which would be one level off.
 	var vomits := get_parent().get_node_or_null("../Vomits")
@@ -179,35 +183,37 @@ func _play_attack() -> void:
 	visual.play_attack(ATTACK_DURATION)
 
 
-# Reynolds-style steering: seek the player, avoid walls via forward feelers, and
-# separate from nearby zombies — so the horde flows around buildings and fans
-# out to surround instead of stacking into a single line.
-func _steer(seek: Vector3) -> Vector3:
-	var steer := seek
-	var space := get_world_3d().direct_space_state
-	var origin := global_position + Vector3.UP * 0.5
-	for a in [0.0, 0.6, -0.6]:
-		var d := seek.rotated(Vector3.UP, a)
-		var q := PhysicsRayQueryParameters3D.create(origin, origin + d * 4.0)
-		q.exclude = [get_rid()]
-		var hit := space.intersect_ray(q)
-		if not hit.is_empty():
-			var n: Vector3 = hit.normal
-			n.y = 0.0
-			if n.length() > 0.01:
-				steer += n.normalized() * 1.3
+# Follow the navmesh path toward the player (routes around walls/buildings), with
+# a light separation push so zombies don't fully overlap. Falls back to a direct
+# beeline if the navmesh isn't ready or yields no path.
+func _chase_dir(target: Node3D, delta: float) -> Vector3:
+	var dir := Vector3.ZERO
+	_nav_t -= delta
+	if _nav_t <= 0.0:
+		_nav_t = 0.2
+		_agent.target_position = target.global_position
+	if not _agent.is_navigation_finished():
+		var nxt := _agent.get_next_path_position() - global_position
+		nxt.y = 0.0
+		if nxt.length() > 0.1:
+			dir = nxt.normalized()
+	if dir == Vector3.ZERO:  # fallback: straight at the player
+		var to := target.global_position - global_position
+		to.y = 0.0
+		dir = to.normalized()
+	# Light anti-overlap separation (does NOT treat the player as an obstacle).
+	var sep := Vector3.ZERO
 	for z in get_tree().get_nodes_in_group("zombie"):
 		if z == self:
 			continue
 		var off: Vector3 = global_position - z.global_position
 		off.y = 0.0
 		var dd := off.length()
-		if dd > 0.05 and dd < 2.2:
-			steer += off.normalized() * (2.2 - dd) * 0.5
-	steer.y = 0.0
-	if steer.length() < 0.05:
-		return seek
-	return steer.normalized()
+		if dd > 0.05 and dd < 1.5:
+			sep += off.normalized() * (1.5 - dd)
+	var out := dir + sep * 0.4
+	out.y = 0.0
+	return out.normalized() if out.length() > 0.05 else dir
 
 
 func _nearest_player() -> Node3D:

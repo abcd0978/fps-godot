@@ -13,10 +13,28 @@ const KIND_COLORS := {
 	4: Color(0.80, 0.55, 1.00),  # spitter
 }
 
+# Cached map footprints {xform, hx, hz} for the minimap topology (built once).
+var _walls: Array = []
+var _scanned := false
+
 
 func _process(_delta: float) -> void:
 	if visible:
 		queue_redraw()
+
+
+# Collect the level's box structures (walls/towers/buildings) for the minimap.
+func _scan_walls() -> void:
+	_scanned = true
+	var world := get_tree().get_first_node_in_group("gameworld")
+	if world == null:
+		return
+	for n in world.get_children():
+		if n is CSGBox3D:
+			var sz: Vector3 = n.size
+			if sz.x > 150.0 or sz.z > 150.0:
+				continue  # skip the floor
+			_walls.append({"xf": n.global_transform, "hx": sz.x * 0.5, "hz": sz.z * 0.5})
 
 
 func _draw() -> void:
@@ -31,6 +49,27 @@ func _draw() -> void:
 		return
 	var inv := p.global_transform.affine_inverse()
 	var s := r / RANGE
+
+	# Map topology: draw each box structure's footprint (rotated with the player).
+	if not _scanned:
+		_scan_walls()
+	for w in _walls:
+		var xf: Transform3D = w["xf"]
+		var hx: float = w["hx"]
+		var hz: float = w["hz"]
+		var corners := PackedVector2Array()
+		var any_near := false
+		for cx in [-hx, hx]:
+			for cz in [-hz, hz]:
+				var lp: Vector3 = inv * (xf * Vector3(cx, 0.0, cz))
+				var v := Vector2(lp.x, lp.z) * s
+				corners.append(c + v)
+				if v.length() < r * 1.4:
+					any_near = true
+		if any_near:
+			# reorder to a proper quad (corners come out as TL,BL,TR,BR)
+			var quad := PackedVector2Array([corners[0], corners[1], corners[3], corners[2]])
+			draw_colored_polygon(quad, Color(0.55, 0.55, 0.62, 0.5))
 
 	for z in get_tree().get_nodes_in_group("zombie"):
 		var lp: Vector3 = inv * z.global_position
