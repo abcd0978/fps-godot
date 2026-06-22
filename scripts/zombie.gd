@@ -12,6 +12,9 @@ const VOMIT := preload("res://scenes/vomit.tscn")
 const CLIMB_SPEED := 5.0  # vertical scaling speed when reaching an elevated player
 const GRAVITY := 14.0
 const ATTACK_DURATION := 0.5  # wind-up; damage lands when the swing ends
+const SIGHT_RANGE := 55.0  # max distance a zombie can spot a player in line of sight
+const SENSE_RANGE := 9.0   # close range it senses the player even without sight
+const LOSE_TIME := 4.0     # keeps chasing this long after losing line of sight
 
 # Per-kind tuning. speed, hp, dmg, body scale, melee/standoff range, color tint.
 const STATS := {
@@ -28,6 +31,11 @@ const STATS := {
 @onready var _agent: NavigationAgent3D = $NavAgent
 
 var _nav_t := 0.0  # throttle path target updates
+var _aware := false        # has line of sight / sense of a player right now
+var _last_seen := Vector3.ZERO
+var _has_last_seen := false
+var _sight_t := 0.0        # throttle line-of-sight checks
+var _lost_t := 0.0         # awareness grace timer after losing sight
 var speed := 7.0
 var damage := 12
 var attack_range := 2.3
@@ -78,17 +86,73 @@ func _physics_process(delta: float) -> void:
 	var height_diff := to_player.y  # how far above us the player is
 	to_player.y = 0.0
 	var dist := to_player.length()
-	if dist > 0.5 and not _attacking:
-		look_at(Vector3(target.global_position.x, global_position.y, target.global_position.z), Vector3.UP)
+	_update_perception(target, dist, delta)
 
-	if kind == 4:
-		_act_spitter(target, to_player, dist)
+	if _aware:
+		# Pursue: the zombie can see (or sense) the player.
+		if dist > 0.5 and not _attacking:
+			look_at(Vector3(target.global_position.x, global_position.y, target.global_position.z), Vector3.UP)
+		if kind == 4:
+			_act_spitter(target, to_player, dist)
+		else:
+			_act_melee(target, to_player, dist, height_diff, delta)
+	elif _has_last_seen:
+		_search(delta)  # head to where the player was last seen, then give up
 	else:
-		_act_melee(target, to_player, dist, height_diff, delta)
+		velocity.x = 0.0  # idle: hasn't noticed any player
+		velocity.z = 0.0
 
 	move_and_slide()
 	if not _attacking:
 		visual.set_locomotion(Vector2(velocity.x, velocity.z).length())
+
+
+# Update line-of-sight awareness. Seeing (or sensing up close) refreshes a grace
+# timer; once it runs out the zombie stops perceiving the player.
+func _update_perception(target: Node3D, dist: float, delta: float) -> void:
+	_lost_t = maxf(_lost_t - delta, 0.0)
+	_sight_t -= delta
+	if _sight_t <= 0.0:
+		_sight_t = 0.25
+		if dist < SENSE_RANGE or (dist < SIGHT_RANGE and _has_los(target)):
+			_last_seen = target.global_position
+			_has_last_seen = true
+			_lost_t = LOSE_TIME
+	_aware = _lost_t > 0.0
+
+
+# Clear line of sight to the player? Walls block it; other zombies don't.
+func _has_los(target: Node3D) -> bool:
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3.UP * 1.2
+	var to := target.global_position + Vector3.UP * 0.6
+	var q := PhysicsRayQueryParameters3D.create(from, to)
+	var ex: Array = [get_rid()]
+	for z in get_tree().get_nodes_in_group("zombie"):
+		if z != self:
+			ex.append(z.get_rid())
+	q.exclude = ex
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return true
+	var col = hit.get("collider")
+	return col != null and col.is_in_group("player")
+
+
+# Walk to the last place the player was seen; on arrival, lose interest.
+func _search(delta: float) -> void:
+	var to := _last_seen - global_position
+	to.y = 0.0
+	if to.length() < 2.5:
+		_has_last_seen = false
+		velocity.x = 0.0
+		velocity.z = 0.0
+		return
+	var dir := _nav_dir(_last_seen, delta)
+	velocity.x = dir.x * speed * 0.75
+	velocity.z = dir.z * speed * 0.75
+	if dir.length() > 0.1:
+		look_at(global_position + Vector3(dir.x, 0.0, dir.z), Vector3.UP)
 
 
 # Melee kinds (normal/runner/brute/jumper): close in, climb, swing in reach.
@@ -98,7 +162,7 @@ func _act_melee(target: Node3D, to_player: Vector3, dist: float, height_diff: fl
 		velocity.z = 0.0
 		return
 	if dist > attack_range:
-		var dir := _chase_dir(target, delta)
+		var dir := _nav_dir(target.global_position, delta)
 		velocity.x = dir.x * speed
 		velocity.z = dir.z * speed
 		# Jumpers periodically leap toward the player to close gaps.
@@ -186,19 +250,19 @@ func _play_attack() -> void:
 # Follow the navmesh path toward the player (routes around walls/buildings), with
 # a light separation push so zombies don't fully overlap. Falls back to a direct
 # beeline if the navmesh isn't ready or yields no path.
-func _chase_dir(target: Node3D, delta: float) -> Vector3:
+func _nav_dir(goal: Vector3, delta: float) -> Vector3:
 	var dir := Vector3.ZERO
 	_nav_t -= delta
 	if _nav_t <= 0.0:
 		_nav_t = 0.2
-		_agent.target_position = target.global_position
+		_agent.target_position = goal
 	if not _agent.is_navigation_finished():
 		var nxt := _agent.get_next_path_position() - global_position
 		nxt.y = 0.0
 		if nxt.length() > 0.1:
 			dir = nxt.normalized()
-	if dir == Vector3.ZERO:  # fallback: straight at the player
-		var to := target.global_position - global_position
+	if dir == Vector3.ZERO:  # fallback: straight at the goal
+		var to := goal - global_position
 		to.y = 0.0
 		dir = to.normalized()
 	# Light anti-overlap separation (does NOT treat the player as an obstacle).
