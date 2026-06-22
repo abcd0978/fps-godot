@@ -8,9 +8,16 @@ $ErrorActionPreference = "Stop"
 $ProjectDir = $PSScriptRoot
 $ExeName    = "AluxStrike"
 $OutDir     = Join-Path $ProjectDir "build"
+$ExportFlag = "--export-release"
 if ($Platform -eq "linux") {
     $Preset = "Linux"
     $OutExe = Join-Path $OutDir "$ExeName.x86_64"
+} elseif ($Platform -eq "debug") {
+    # Debug build: ships the debug template so native crash backtraces resolve
+    # to symbols and GDScript runtime errors print a full source:line stack.
+    $Preset = "Windows Desktop"
+    $OutExe = Join-Path $OutDir "${ExeName}_debug.exe"
+    $ExportFlag = "--export-debug"
 } else {
     $Preset = "Windows Desktop"
     $OutExe = Join-Path $OutDir "$ExeName.exe"
@@ -113,7 +120,7 @@ if (Test-Path $OutExe) { Remove-Item $OutExe -Force }
 Write-Host "내보내는 중 -> $OutExe" -ForegroundColor Cyan
 # godot 진행상황이 stderr 로 나와 Stop 모드에서 종료성 에러로 오인되므로 완화
 $ErrorActionPreference = "Continue"
-& godot --headless --path $ProjectDir --export-release $Preset $OutExe
+& godot --headless --path $ProjectDir $ExportFlag $Preset $OutExe
 Write-Host "godot 종료코드: $LASTEXITCODE"
 
 # 6) 결과 확인

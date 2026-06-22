@@ -11,9 +11,19 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
+Crash="*res://scripts/crash_reporter.gd"
 Net="*res://scripts/net/network_manager.gd"
 Match="*res://scripts/match.gd"
 Settings="*res://scripts/settings.gd"
+
+[debug]
+
+file_logging/enable_file_logging=true
+file_logging/enable_file_logging.pc=true
+file_logging/log_path="user://logs/godot.log"
+file_logging/max_log_files=10
+settings/crash_handler/message="AluxStrike crashed. A full log (with backtrace) was saved under: %APPDATA%\\Godot\\app_userdata\\AluxStrike\\logs\\ (editor) or %APPDATA%\\AluxStrike\\logs\\ (exported). Please send the newest crash_*.log / godot.log."
+gdscript/warnings/exclude_addons=true
 
 [display]
 

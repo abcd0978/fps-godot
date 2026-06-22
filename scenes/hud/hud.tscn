@@ -1,9 +1,14 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/hud/hud.gd" id="1"]
 [ext_resource type="Shader" path="res://scenes/hud/scope.gdshader" id="2"]
 [ext_resource type="Shader" path="res://scenes/hud/damage.gdshader" id="3"]
 [ext_resource type="Script" path="res://scripts/crosshair.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/hud/radar.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/hud/weapon_wheel.gd" id="6"]
+
+[sub_resource type="Theme" id="Theme_hud"]
+default_font_size = 24
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_scope"]
 shader = ExtResource("2")
@@ -23,6 +28,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme = SubResource("Theme_hud")
 
 [node name="Crosshair" type="Control" parent="Root"]
 anchor_right = 1.0
@@ -136,6 +142,73 @@ grow_horizontal = 2
 text = "5:00"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="ZombieCount" type="Label" parent="Root"]
+visible = false
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -120.0
+offset_top = 46.0
+offset_right = 120.0
+offset_bottom = 74.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
+text = "남은 좀비: 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PointsLabel" type="Label" parent="Root"]
+visible = false
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -520.0
+offset_top = -110.0
+offset_right = 520.0
+offset_bottom = -84.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 0.9, 0.5, 1)
+text = "포인트 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="UpgradeToast" type="Label" parent="Root"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -150.0
+offset_right = 300.0
+offset_bottom = -118.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.1, 1)
+theme_override_font_sizes/font_size = 30
+text = "▲ 업그레이드!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Radar" type="Control" parent="Root"]
+visible = false
+custom_minimum_size = Vector2(260, 260)
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 280.0
+offset_bottom = 280.0
+mouse_filter = 2
+script = ExtResource("5")
+
+[node name="WeaponWheel" type="Control" parent="Root"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6")
 
 [node name="WinnerLabel" type="Label" parent="Root"]
 visible = false

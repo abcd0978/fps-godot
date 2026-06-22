@@ -21,8 +21,9 @@ var _state := ""
 
 
 # index < 0 => random skin. Players pass a stable index (peer id) so every
-# peer renders the same skin for the same player.
-func build(index: int, tint := Color(1, 1, 1, 1), with_gun := true) -> void:
+# peer renders the same skin for the same player. shadows=false skips shadow
+# casting (used for zombies — a big perf win when many are on screen).
+func build(index: int, tint := Color(1, 1, 1, 1), with_gun := true, shadows := true) -> void:
 	var i: int = (randi() % SKINS.size()) if index < 0 else (index % SKINS.size())
 	var skin: Node3D = SKINS[i].instantiate()
 	skin.rotation.y = PI          # face -Z (CharacterBody3D forward)
@@ -38,6 +39,10 @@ func build(index: int, tint := Color(1, 1, 1, 1), with_gun := true) -> void:
 		mat.emission_energy_multiplier = 0.4
 		for mi in skin.find_children("*", "MeshInstance3D", true, false):
 			mi.material_override = mat
+
+	if not shadows:
+		for mi in skin.find_children("*", "MeshInstance3D", true, false):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	# Attach a gun to the right arm so other players see the held weapon.
 	if with_gun:

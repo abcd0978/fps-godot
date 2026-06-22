@@ -14,6 +14,11 @@ extends CanvasLayer
 @onready var scoreboard: Panel = $Root/Scoreboard
 @onready var score_text: Label = $Root/Scoreboard/Text
 @onready var winner_label: Label = $Root/WinnerLabel
+@onready var zombie_count: Label = $Root/ZombieCount
+@onready var radar: Control = $Root/Radar
+@onready var weapon_wheel: Control = $Root/WeaponWheel
+@onready var points_label: Label = $Root/PointsLabel
+@onready var upgrade_toast: Label = $Root/UpgradeToast
 
 var _hit := 0.0
 var _dir_hit := 0.0
@@ -35,8 +40,13 @@ func _process(delta: float) -> void:
 
 func _update_match() -> void:
 	var over := false
-	if Match.mode == "zombie":
+	var zombie_mode := Match.mode == "zombie"
+	zombie_count.visible = zombie_mode
+	radar.visible = zombie_mode
+	points_label.visible = zombie_mode
+	if zombie_mode:
 		timer_label.text = "PHASE %d" % Match.phase
+		zombie_count.text = "남은 좀비: %d" % get_tree().get_nodes_in_group("zombie").size()
 		winner_label.visible = false
 	else:
 		timer_label.text = "%d:%02d" % [int(Match.time_left) / 60, int(Match.time_left) % 60]
@@ -77,7 +87,41 @@ func flash_damage(angle: float) -> void:
 
 func set_scope(on: bool) -> void:
 	scope.visible = on
-	crosshair.visible = not on
+
+
+# Crosshair is shown only while hip-firing — hidden when aiming down the sights.
+func set_crosshair(on: bool) -> void:
+	crosshair.visible = on
+
+
+# --- Weapon wheel (radial selector held with F) ---
+func open_weapon_wheel(names: PackedStringArray, selected: int, unlocked: Array = []) -> void:
+	weapon_wheel.show_wheel(names, selected, unlocked)
+
+
+func update_weapon_wheel(selected: int) -> void:
+	weapon_wheel.update_selection(selected)
+
+
+func close_weapon_wheel() -> void:
+	weapon_wheel.hide_wheel()
+
+
+# Boxhead points + upgrade readout. up = [damage, rate, mag] levels (current gun).
+func set_points(value: int, barricade_lv: int, up: Array) -> void:
+	points_label.text = "포인트 %d   현재무기Lv 뎀%d/연사%d/탄창%d   [Z]지뢰40 [X]바리80 [H]내구%d   (무기·업글은 아이템)" % [
+		value, up[0], up[1], up[2], barricade_lv]
+
+
+# Brief on-screen toast when an upgrade item is collected.
+func flash_upgrade(msg: String) -> void:
+	upgrade_toast.text = "▲ 업그레이드!  %s" % msg
+	upgrade_toast.visible = true
+	upgrade_toast.modulate.a = 1.0
+	var tw := create_tween()
+	tw.tween_interval(1.2)
+	tw.tween_property(upgrade_toast, "modulate:a", 0.0, 0.8)
+	tw.tween_callback(func(): upgrade_toast.visible = false)
 
 
 func set_dead(on: bool) -> void:

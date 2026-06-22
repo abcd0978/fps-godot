@@ -80,6 +80,7 @@ func _start(mode: String) -> void:
 	if not Net.host():
 		status.text = "시작 실패 (포트 사용 중?)"
 		return
+	Crash.breadcrumb("match start: mode=%s multi=%s" % [mode, _multi])
 	Match.set_mode(mode)
 	Match.start_match()
 	if mode == "zombie":

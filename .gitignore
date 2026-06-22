@@ -7,3 +7,6 @@
 # temp
 /_dl/
 *.tmp
+
+# Claude Code local data (worktrees, settings, logs)
+/.claude/

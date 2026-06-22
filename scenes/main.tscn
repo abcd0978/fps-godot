@@ -36,6 +36,10 @@ sky_material = SubResource("ProceduralSkyMaterial_1")
 background_mode = 2
 sky = SubResource("Sky_1")
 tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.62, 0.66, 0.72, 1)
+fog_density = 0.018
+fog_sky_affect = 0.0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1"]
 size = Vector3(1, 1, 1)
@@ -654,6 +658,108 @@ surface_material_override/0 = SubResource("StandardMaterial3D_1")
 [node name="Collision" type="CollisionShape3D" parent="Target6"]
 shape = SubResource("BoxShape3D_1")
 
+[node name="Tower1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 7, 22)
+use_collision = true
+size = Vector3(9, 14, 9)
+material = SubResource("mat_build")
+
+[node name="Tower2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 8, 26)
+use_collision = true
+size = Vector3(11, 16, 8)
+material = SubResource("mat_build")
+
+[node name="Tower3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58, 7, -30)
+use_collision = true
+size = Vector3(8, 14, 11)
+material = SubResource("mat_build")
+
+[node name="Tower4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58, 7, -50)
+use_collision = true
+size = Vector3(10, 14, 9)
+material = SubResource("mat_build")
+
+[node name="Tower5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 6.5, 50)
+use_collision = true
+size = Vector3(13, 13, 7)
+material = SubResource("mat_build")
+
+[node name="Tower6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 7.5, -52)
+use_collision = true
+size = Vector3(8, 15, 12)
+material = SubResource("mat_build")
+
+[node name="Tower7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, 8, 66)
+use_collision = true
+size = Vector3(8, 16, 8)
+material = SubResource("mat_wall")
+
+[node name="Tower8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -68, 7, 52)
+use_collision = true
+size = Vector3(9, 14, 13)
+material = SubResource("mat_wall")
+
+[node name="Tower9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68, 6.5, -58)
+use_collision = true
+size = Vector3(10, 13, 8)
+material = SubResource("mat_wall")
+
+[node name="Tower10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -46, 7, 6)
+use_collision = true
+size = Vector3(12, 14, 7)
+material = SubResource("mat_wall")
+
+[node name="D2_BlockNE" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70, 6, -70)
+use_collision = true
+size = Vector3(38, 12, 38)
+material = SubResource("mat_build")
+
+[node name="D2_BlockSW" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -70, 6, 70)
+use_collision = true
+size = Vector3(38, 12, 38)
+material = SubResource("mat_build")
+
+[node name="D2_BlockNW" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72, 5, -68)
+use_collision = true
+size = Vector3(30, 10, 30)
+material = SubResource("mat_build")
+
+[node name="D2_LaneE" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 4.5, -25)
+use_collision = true
+size = Vector3(2.5, 9, 95)
+material = SubResource("mat_wall")
+
+[node name="D2_LaneS" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 4.5, 42)
+use_collision = true
+size = Vector3(80, 9, 2.5)
+material = SubResource("mat_wall")
+
+[node name="D2_MidWallA" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4.5, -48)
+use_collision = true
+size = Vector3(2.5, 9, 40)
+material = SubResource("mat_wall")
+
+[node name="D2_BlockSE" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 5, 32)
+use_collision = true
+size = Vector3(14, 10, 14)
+material = SubResource("mat_build")
+
 [node name="Players" type="Node3D" parent="."]
 
 [node name="Bots" type="Node3D" parent="."]
@@ -663,6 +769,8 @@ script = ExtResource("16")
 script = ExtResource("26")
 
 [node name="Pickups" type="Node3D" parent="."]
+
+[node name="Vomits" type="Node3D" parent="."]
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://scenes/player.tscn")
@@ -675,6 +783,10 @@ spawn_path = NodePath("../Zombies")
 [node name="PickupSpawner" type="MultiplayerSpawner" parent="."]
 _spawnable_scenes = PackedStringArray("res://scenes/pickup.tscn")
 spawn_path = NodePath("../Pickups")
+
+[node name="VomitSpawner" type="MultiplayerSpawner" parent="."]
+_spawnable_scenes = PackedStringArray("res://scenes/vomit.tscn")
+spawn_path = NodePath("../Vomits")
 
 [node name="HUD" parent="." instance=ExtResource("3")]
 

@@ -13,6 +13,15 @@ const MAX_HEALTH := 100
 const HIP_FOV := 75.0
 const RESPAWN_TIME := 5.0
 
+# Boxhead-style points economy (zombie mode): earn per kill, spend on placeables
+# and upgrades.
+const MINE_SCENE := preload("res://scenes/mine.tscn")
+const BARRICADE_SCENE := preload("res://scenes/barricade.tscn")
+const POINTS_PER_KILL := 15
+const MINE_COST := 40
+const BARRICADE_COST := 80
+const DURA_COST := 150
+
 signal health_changed(value: int)
 
 @onready var head: Node3D = $Head
@@ -38,6 +47,12 @@ var _bob_pitch := 0.0
 var _bob_yaw := 0.0
 var _last_pos := Vector3.ZERO
 var _hud: CanvasLayer = null
+var _wheel_open := false
+var _wheel_vec := Vector2.ZERO
+var _wheel_names: PackedStringArray = []
+var _wheel_sel := 0
+var points := 0
+var _barricade_dura := 0
 
 
 func _enter_tree() -> void:
@@ -46,6 +61,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	add_to_group("player")
+	Crash.breadcrumb("player ready id=%s authority=%s" % [name, is_multiplayer_authority()])
 	visual.build(name.to_int())  # stable skin per peer id (same on every client)
 	_last_pos = global_position
 	if is_multiplayer_authority():
@@ -72,6 +88,8 @@ func _connect_hud() -> void:
 	hud.set_health(health)
 	hud.set_weapon(weapon.current_name())
 	hud.set_ammo(weapon.current_ammo(), weapon.current_mag())
+	weapon.weapon_changed.connect(func(_n): _update_points_hud())  # show this gun's levels
+	_update_points_hud()
 
 
 # Runs on every peer: drives the 3rd-person animation from synced state.
@@ -89,7 +107,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not is_multiplayer_authority() or _dead:
 		return
 
+	# Weapon wheel: hold F to open, aim the mouse, release F to equip.
+	if event is InputEventKey and event.keycode == KEY_F:
+		if event.pressed and not event.echo:
+			_open_wheel()
+		elif not event.pressed:
+			_close_wheel()
+		return
+
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		if _wheel_open:
+			_wheel_vec += event.relative
+			if _wheel_vec.length() > 140.0:
+				_wheel_vec = _wheel_vec.normalized() * 140.0
+			_update_wheel_sel()
+			return
 		var sens: float = Settings.mouse_sens
 		if _scoped:
 			sens *= 0.35
@@ -109,7 +141,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_4: weapon.equip(3)
 			KEY_5: weapon.equip(4)
 			KEY_6: weapon.equip(5)
+			KEY_7: weapon.equip(6)
+			KEY_8: weapon.equip(7)
+			KEY_9: weapon.equip(8)
+			KEY_0: weapon.equip(9)
 			KEY_R: weapon.reload()
+			KEY_Z: _place_mine()
+			KEY_X: _place_barricade()
+			KEY_H: _buy_barricade_durability()
 			KEY_ESCAPE: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
@@ -143,10 +182,11 @@ func _handle_combat(delta: float) -> void:
 	weapon.show_model(not _scoped)
 	if _hud:
 		_hud.set_scope(_scoped)
+		_hud.set_crosshair(not _aiming)  # iron sights: no crosshair while aiming
 	var target_fov: float = weapon.aim_fov() if _aiming else HIP_FOV
 	camera.fov = lerp(camera.fov, target_fov, delta * 12.0)
 
-	if captured and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if captured and not _wheel_open and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		var kick: float = weapon.fire()
 		if kick > 0.0:
 			_recoil_pitch += kick
@@ -174,6 +214,91 @@ func _apply_bob(delta: float) -> void:
 	weapon.position = Vector3(x, -y, 0.0)
 	_bob_pitch = -y * 0.15
 	_bob_yaw = x * 0.15
+
+
+# --- Weapon wheel ---
+func _open_wheel() -> void:
+	if _wheel_open:
+		return
+	_wheel_names = weapon.selectable_names()
+	if _wheel_names.is_empty():
+		return
+	_wheel_open = true
+	_wheel_vec = Vector2.ZERO
+	_wheel_sel = -1  # nothing selected until the mouse picks a direction
+	if _hud:
+		_hud.open_weapon_wheel(_wheel_names, _wheel_sel, weapon.is_unlocked_list())
+
+
+func _close_wheel() -> void:
+	if not _wheel_open:
+		return
+	_wheel_open = false
+	if _wheel_sel >= 0 and _wheel_sel < _wheel_names.size():
+		weapon.equip(_wheel_sel)
+	if _hud:
+		_hud.close_weapon_wheel()
+
+
+# Map the accumulated mouse vector to a sector (index 0 at the top, clockwise).
+func _update_wheel_sel() -> void:
+	var n := _wheel_names.size()
+	if n == 0:
+		return
+	if _wheel_vec.length() >= 28.0:  # deadzone near the hub keeps the last pick
+		var ang := atan2(_wheel_vec.y, _wheel_vec.x) + PI * 0.5
+		_wheel_sel = int(round(fposmod(ang, TAU) / (TAU / n))) % n
+	if _hud:
+		_hud.update_weapon_wheel(_wheel_sel)
+
+
+# --- Points economy (Boxhead-style) ---
+func add_points(n: int) -> void:
+	points += n
+	_update_points_hud()
+
+
+func _place_mine() -> void:
+	if points < MINE_COST:
+		return
+	var scene := get_tree().get_first_node_in_group("gameworld")
+	if scene == null:
+		return
+	var m := MINE_SCENE.instantiate()
+	scene.add_child(m)
+	var fwd := -global_transform.basis.z
+	m.global_position = global_position + fwd * 1.8 + Vector3.DOWN * 0.9
+	points -= MINE_COST
+	_update_points_hud()
+
+
+func _place_barricade() -> void:
+	if points < BARRICADE_COST:
+		return
+	var scene := get_tree().get_first_node_in_group("gameworld")
+	if scene == null:
+		return
+	var b := BARRICADE_SCENE.instantiate()
+	scene.add_child(b)
+	var fwd := -global_transform.basis.z
+	b.global_position = global_position + fwd * 3.0
+	b.rotation.y = rotation.y
+	b.setup(_barricade_dura)
+	points -= BARRICADE_COST
+	_update_points_hud()
+
+
+func _buy_barricade_durability() -> void:
+	if points < DURA_COST or _barricade_dura >= 5:
+		return
+	_barricade_dura += 1
+	points -= DURA_COST
+	_update_points_hud()
+
+
+func _update_points_hud() -> void:
+	if _hud and _hud.has_method("set_points"):
+		_hud.set_points(points, _barricade_dura, weapon.current_upgrades())
 
 
 func _movement_input() -> Vector2:
@@ -206,8 +331,9 @@ func _update_sprint() -> void:
 func take_damage(amount: int, attacker_name: String, weapon_name: String, attacker_pos: Vector3) -> void:
 	if not is_multiplayer_authority() or _dead or _invincible:
 		return
-	# No friendly fire in zombie survival — only zombies can hurt players.
-	if Match.mode == "zombie" and attacker_name != "Zombie":
+	# No friendly fire in zombie survival — only zombies can hurt players, EXCEPT
+	# explosives, which catch the player too (mind your own blast radius).
+	if Match.mode == "zombie" and attacker_name != "Zombie" and weapon_name not in ["Rocket", "Grenade", "Mine"]:
 		return
 	if _hud:
 		var local := global_transform.affine_inverse() * attacker_pos
@@ -246,16 +372,35 @@ func give_ammo() -> void:
 
 
 @rpc("any_peer", "call_local", "reliable")
-func give_weapon(index: int) -> void:
+func give_weapon(_index: int) -> void:
 	if is_multiplayer_authority():
+		var wi: int = weapon.unlock_random()  # find a new weapon
 		weapon.add_ammo()
-		weapon.equip(index)
+		if wi >= 0:
+			weapon.equip(wi)
 
 
 @rpc("any_peer", "call_local", "reliable")
 func give_grenade(n: int) -> void:
 	if is_multiplayer_authority():
 		weapon.add_grenade(n)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func give_minigun() -> void:
+	if is_multiplayer_authority():
+		weapon.give_minigun()
+
+
+# Upgrade item: a random weapon gets a random stat bump.
+@rpc("any_peer", "call_local", "reliable")
+func give_upgrade() -> void:
+	if not is_multiplayer_authority():
+		return
+	var msg: String = weapon.upgrade_random()
+	_update_points_hud()
+	if msg != "" and _hud and _hud.has_method("flash_upgrade"):
+		_hud.flash_upgrade(msg)
 
 
 # Called by the Match manager when a new round starts.

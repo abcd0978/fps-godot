@@ -5,8 +5,11 @@ extends Node
 const PORT := 7777
 const ADDRESS := "127.0.0.1"
 
+const MAX_SPLATS := 500  # global cap on persistent ground blood decals
+
 var player_scene: PackedScene = preload("res://scenes/player.tscn")
 var blood_scene: PackedScene = preload("res://scenes/blood.tscn")
+var splat_scene: PackedScene = preload("res://scenes/blood_splat.tscn")
 var players_root: Node = null
 var player_name := "Player"
 
@@ -18,17 +21,65 @@ func report_kill(killer: String, victim: String, weapon: String) -> void:
 	if hud:
 		hud.add_kill(killer, victim, weapon)
 	Match.register_kill(killer)
+	# Award the local player points for their own zombie kills (Boxhead economy).
+	if victim == "Zombie":
+		for p in get_tree().get_nodes_in_group("player"):
+			if p.is_multiplayer_authority() and p.pname == killer and p.has_method("add_points"):
+				p.add_points(15)
+				break
 
 
 # Spawn a blood burst at a hit point on every peer (cosmetic, so unreliable).
+# `normal` is the surface normal so the spurt sprays outward; a persistent
+# splat decal is also dropped on the ground below the hit.
 @rpc("any_peer", "call_local", "unreliable")
-func spawn_blood(pos: Vector3) -> void:
+func spawn_blood(pos: Vector3, normal := Vector3.UP) -> void:
 	var scene := get_tree().get_first_node_in_group("gameworld")
 	if scene == null:
 		return
 	var b := blood_scene.instantiate()
 	scene.add_child(b)
 	b.global_position = pos
+	# Aim the burst (local +Z) along the surface normal so it sprays back
+	# outward. look_at points -Z at the target, so target = pos - normal.
+	if normal.length() > 0.01 and absf(normal.dot(Vector3.UP)) < 0.99:
+		b.look_at(pos - normal, Vector3.UP)
+	_drop_splat(scene, pos)
+
+
+# Project a blood splat onto the ground beneath the hit and cap the total.
+func _drop_splat(scene: Node, pos: Vector3) -> void:
+	var world := (scene as Node3D).get_world_3d()
+	if world == null:
+		return
+	var space := world.direct_space_state
+	if space == null:
+		return
+	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.3, pos + Vector3.DOWN * 8.0)
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return
+	var splats := get_tree().get_nodes_in_group("bloodsplat")
+	while splats.size() >= MAX_SPLATS:
+		splats[0].queue_free()
+		splats.remove_at(0)
+	var s := splat_scene.instantiate()
+	scene.add_child(s)
+	var hpos: Vector3 = hit.position
+	var hnorm: Vector3 = hit.normal
+	s.global_position = hpos + hnorm * 0.02  # lift slightly to avoid z-fighting
+	# Lay the quad flat on the surface with a random spin and size.
+	var basis := _basis_from_normal(hnorm)
+	basis = basis.rotated(hnorm, randf() * TAU).scaled(Vector3.ONE * randf_range(0.5, 1.1))
+	s.global_transform.basis = basis
+
+
+# Build an orthonormal basis whose +Z points along `n` (the quad's facing axis).
+func _basis_from_normal(n: Vector3) -> Basis:
+	var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.99 else Vector3.RIGHT
+	var x := up.cross(n).normalized()
+	var y := n.cross(x).normalized()
+	return Basis(x, y, n)
 
 
 func host() -> bool:

@@ -25,6 +25,10 @@ func _apply_color() -> void:
 		c = Color(0.35, 0.6, 1.0)         # weapon = blue
 	elif kind == 3:
 		c = Color(0.5, 0.25, 0.1)         # grenade = brown
+	elif kind == 4:
+		c = Color(1.0, 0.2, 0.9)          # minigun = bright magenta (rare)
+	elif kind == 5:
+		c = Color(1.0, 0.55, 0.0)         # upgrade = orange
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.emission_enabled = true
@@ -43,7 +47,11 @@ func _on_body(body: Node) -> void:
 		1:
 			body.give_ammo.rpc_id(auth)
 		2:
-			body.give_weapon.rpc_id(auth, randi_range(1, 3))
+			body.give_weapon.rpc_id(auth, randi_range(1, 7))
 		3:
 			body.give_grenade.rpc_id(auth, 2)
+		4:
+			body.give_minigun.rpc_id(auth)
+		5:
+			body.give_upgrade.rpc_id(auth)
 	queue_free()
